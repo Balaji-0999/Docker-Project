@@ -12,6 +12,7 @@
     "dotenv": "^16.4.5",
     "nanoid": "^3.3.7",
     "ua-parser-js": "^1.0.38",
-    "geoip-lite": "^1.4.10"
+    "geoip-lite": "^1.4.10",
+    "express-rate-limit": "^7.4.0"
   }
 }
