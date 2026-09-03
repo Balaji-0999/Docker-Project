@@ -1,4 +1,5 @@
 const express = require('express');
+const bcrypt = require('bcrypt');
 const { nanoid } = require('nanoid');
 const pool = require('../db');
 const redisClient = require('../redisClient');
@@ -8,7 +9,7 @@ const router = express.Router();
 router.use(verifyToken);
 
 router.post('/shorten', async (req, res) => {
-  const { originalUrl, customAlias } = req.body;
+  const { originalUrl, customAlias, expiresIn, password } = req.body;
   if (!originalUrl) return res.status(400).json({ error: 'URL required' });
 
   try {
@@ -28,9 +29,21 @@ router.post('/shorten', async (req, res) => {
 
     const shortCode = customAlias || nanoid(7);
 
+    let expiresAt = null;
+    if (expiresIn === '7d') {
+      expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    } else if (expiresIn === '30d') {
+      expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    }
+
+    let passwordHash = null;
+    if (password) {
+      passwordHash = await bcrypt.hash(password, 10);
+    }
+
     const result = await pool.query(
-      'INSERT INTO links (short_code, original_url, user_id) VALUES ($1, $2, $3) RETURNING *',
-      [shortCode, originalUrl, req.userId]
+      'INSERT INTO links (short_code, original_url, user_id, expires_at, password_hash) VALUES ($1, $2, $3, $4, $5) RETURNING id, short_code, original_url, user_id, created_at, expires_at',
+      [shortCode, originalUrl, req.userId, expiresAt, passwordHash]
     );
 
     await redisClient.set(shortCode, originalUrl);
@@ -71,9 +84,21 @@ router.get('/:id/analytics', async (req, res) => {
     [id]
   );
 
+  const referrerBreakdown = await pool.query(
+    `SELECT
+       CASE WHEN referrer = 'direct' OR referrer IS NULL THEN 'Direct' ELSE referrer END AS referrer,
+       COUNT(*) AS count
+     FROM clicks WHERE link_id = $1
+     GROUP BY referrer
+     ORDER BY count DESC
+     LIMIT 5`,
+    [id]
+  );
+
   res.json({
     dailyClicks: dailyClicks.rows,
-    deviceBreakdown: deviceBreakdown.rows
+    deviceBreakdown: deviceBreakdown.rows,
+    referrerBreakdown: referrerBreakdown.rows
   });
 });
 
