@@ -3,6 +3,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import LinkAnalytics from './pages/LinkAnalytics';
+import Unlock from './pages/Unlock';
 import ProtectedRoute from './components/ProtectedRoute';
 import './App.css';
 
@@ -13,6 +14,7 @@ function App() {
         <Route path="/" element={<Navigate to="/login" />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/unlock/:shortCode" element={<Unlock />} />
         <Route
           path="/dashboard"
           element={
