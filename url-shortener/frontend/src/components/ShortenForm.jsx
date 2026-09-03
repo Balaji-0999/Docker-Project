@@ -5,6 +5,8 @@ import { shortenUrl } from '../api';
 function ShortenForm({ onNewLink }) {
   const [url, setUrl] = useState('');
   const [alias, setAlias] = useState('');
+  const [expiresIn, setExpiresIn] = useState('');
+  const [password, setPassword] = useState('');
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
@@ -15,10 +17,12 @@ function ShortenForm({ onNewLink }) {
     setError('');
     setCopied(false);
     try {
-      const res = await shortenUrl(url, alias || undefined);
+      const res = await shortenUrl(url, alias || undefined, expiresIn || undefined, password || undefined);
       setResult(res.data);
       setUrl('');
       setAlias('');
+      setExpiresIn('');
+      setPassword('');
       if (onNewLink) onNewLink();
     } catch (err) {
       setError(err.response?.data?.error || 'Something went wrong');
@@ -26,19 +30,19 @@ function ShortenForm({ onNewLink }) {
   };
 
   const handleCopy = () => {
-  const textarea = document.createElement('textarea');
-  textarea.value = result.shortUrl;
-  textarea.style.position = 'fixed';
-  textarea.style.opacity = '0';
-  document.body.appendChild(textarea);
-  textarea.focus();
-  textarea.select();
-  document.execCommand('copy');
-  document.body.removeChild(textarea);
+    const textarea = document.createElement('textarea');
+    textarea.value = result.shortUrl;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
 
-  setCopied(true);
-  setTimeout(() => setCopied(false), 2000);
-};
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const handleDownloadQR = () => {
     const svg = qrRef.current.querySelector('svg');
@@ -76,6 +80,17 @@ function ShortenForm({ onNewLink }) {
           placeholder="Custom alias (optional)"
           value={alias}
           onChange={(e) => setAlias(e.target.value)}
+        />
+        <select value={expiresIn} onChange={(e) => setExpiresIn(e.target.value)}>
+          <option value="">Never expires</option>
+          <option value="7d">Expires in 7 days</option>
+          <option value="30d">Expires in 30 days</option>
+        </select>
+        <input
+          type="password"
+          placeholder="Password (optional)"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
         />
         <button type="submit">Shorten</button>
       </form>
