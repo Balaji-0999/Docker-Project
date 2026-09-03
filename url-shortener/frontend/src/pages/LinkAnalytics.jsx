@@ -4,13 +4,13 @@ import { getAnalytics } from '../api';
 import AnalyticsChart from '../components/AnalyticsChart';
 
 function LinkAnalytics() {
-  const { id } = useParams(); // URL se link id nikalta hai, e.g. /analytics/1
+  const { id } = useParams();
   const [data, setData] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     getAnalytics(id).then((res) => setData(res.data));
-  }, [id]); // id badle to dobara fetch karo
+  }, [id]);
 
   if (!data) return <p>Loading...</p>;
 
@@ -18,7 +18,11 @@ function LinkAnalytics() {
     <div className="analytics-page">
       <button onClick={() => navigate('/dashboard')}>← Back to Dashboard</button>
       <h1>Link Analytics</h1>
-      <AnalyticsChart dailyClicks={data.dailyClicks} deviceBreakdown={data.deviceBreakdown} />
+      <AnalyticsChart
+        dailyClicks={data.dailyClicks}
+        deviceBreakdown={data.deviceBreakdown}
+        referrerBreakdown={data.referrerBreakdown}
+      />
     </div>
   );
 }
