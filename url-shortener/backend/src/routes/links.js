@@ -5,13 +5,27 @@ const redisClient = require('../redisClient');
 const verifyToken = require('../middleware/auth');
 const router = express.Router();
 
-router.use(verifyToken); // ab is file ke saare routes protected hain
+router.use(verifyToken);
 
 router.post('/shorten', async (req, res) => {
   const { originalUrl, customAlias } = req.body;
   if (!originalUrl) return res.status(400).json({ error: 'URL required' });
 
   try {
+    const existing = await pool.query(
+      'SELECT * FROM links WHERE user_id = $1 AND original_url = $2',
+      [req.userId, originalUrl]
+    );
+
+    if (existing.rows.length > 0) {
+      const link = existing.rows[0];
+      return res.status(200).json({
+        shortUrl: `${process.env.BASE_URL}/${link.short_code}`,
+        ...link,
+        alreadyExists: true
+      });
+    }
+
     const shortCode = customAlias || nanoid(7);
 
     const result = await pool.query(

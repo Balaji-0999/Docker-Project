@@ -2,6 +2,8 @@ import axios from 'axios';
 
 const API_BASE = 'http://54.92.201.3:5000/api';
 
+export const REDIRECT_BASE = API_BASE.replace('/api', '');
+
 const api = axios.create({
   baseURL: API_BASE,
 });

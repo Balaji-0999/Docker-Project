@@ -168,3 +168,33 @@ h2 { margin: 20px 0 10px; }
   border-radius: 6px;
   cursor: pointer;
 }
+
+.link-card-wrapper { margin-bottom: 4px; }
+
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.small-btn {
+  background: #eaf2fe;
+  color: #2c7be5;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.8em;
+  white-space: nowrap;
+}
+.small-btn:hover { background: #d5e6fc; }
+
+.qr-inline-box {
+  background: white;
+  padding: 15px;
+  border-radius: 0 0 8px 8px;
+  display: flex;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  margin-top: -8px;
+}
