@@ -1,0 +1,48 @@
+name: URL Shortener CICD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'url-shortener/**'
+  workflow_dispatch:
+
+jobs:
+  code:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+  build:
+    needs: code
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install backend dependencies
+        run: cd url-shortener/backend && npm install
+      - name: Build frontend
+        run: cd url-shortener/frontend && npm install && npm run build
+
+
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: placeholder test step
+        run: echo "No automated test yet - build passing confirms syntax is valid"
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/docker-projects/Docker-project/url-shortener
+            git pull origin main
+            docker compose up -d --build
