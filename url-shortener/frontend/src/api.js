@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE = 'http://3.94.162.222:5000/api';
+const API_BASE = 'http://54.91.209.162:5000/api';
 
 export const REDIRECT_BASE = API_BASE.replace('/api', '');
 
