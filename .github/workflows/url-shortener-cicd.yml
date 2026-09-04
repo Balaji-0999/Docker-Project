@@ -38,6 +38,12 @@ jobs:
     steps:
       - name: Decode SSH key
         run: echo "${{ secrets.EC2_SSH_KEY_B64 }}" | base64 -d > private_key.pem
+      - name: Verify key format (safe, no key content shown)
+        run: |
+          wc -l private_key.pem
+          head -1 private_key.pem
+          tail -1 private_key.pem
+          chmod 600 private_key.pem
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v1.0.0
         with:
@@ -48,3 +54,5 @@ jobs:
             cd ~/docker-projects/Docker-project/url-shortener
             git pull origin main
             docker compose up --build -d
+
+  
