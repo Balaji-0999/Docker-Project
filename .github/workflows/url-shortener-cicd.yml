@@ -36,13 +36,15 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     steps:
+      - name: Decode SSH key
+        run: echo "${{ secrets.EC2_SSH_KEY_B64 }}" | base64 -d > private_key.pem
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_SSH_KEY }}
+          key_path: private_key.pem
           script: |
             cd ~/docker-projects/Docker-project/url-shortener
             git pull origin main
-            docker compose up -d --build
+            docker compose up --build -d
