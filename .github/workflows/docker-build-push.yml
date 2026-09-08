@@ -18,18 +18,34 @@ jobs:
               with:
                   username: ${{ vars.DOCKER_USER }}
                   password: ${{ secrets.DOCKER_HUB_TOKEN }}
+           
+            - name: Build Dockerfile
+              run: Build -t ${{ secrets.DOCKER_USER }}/cicd-app .
 
-            - name: Build & Push to Docker Hub
-              uses: docker/build-push-action@v6
-              with:
-                context: .
-                push: true
-                tags: |
-                    ${{ vars.DOCKER_USER }}/github-action-app:${{ github.ref }}
-                    ${{ vars.DOCKER_USER }}/github-action-app:latest
-                    ${{ vars.DOCKER_USER }}/github-action-app:${{ github.sha}}
+            - name: docker to Docker hub
+              run: docker push ${{ secrets.DOCKER_USER }}/cicd-app
 
-                 
+
+     deploy-ec2:
+      runs-on: ubuntu-latest
+
+      steps:
+        - name: Deploy to EC2
+          uses: appleboy/ssh-action@v1.2.2
+          with:
+            host: ${{ secrets.EC2_HOST }}
+            username: ${{ secrets.EC2_USERNAME }}
+            key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+            script: |
+              cd /home/ubuntu/actions-runner
+              docker compose down
+              docker compose up -d --build
+       
+
+
+            
+
+          
 
                 
              
