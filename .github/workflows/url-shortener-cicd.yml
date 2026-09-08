@@ -1,59 +1,49 @@
-# name: URL Shortener CICD
+name: Docker Build & Push
 
-# on:
-#   push:
-#     branches: [main]
-#     paths:
-#       - 'url-shortener/**'
-#   workflow_dispatch:
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'url-shortener/**'
+  workflow_dispatch:
 
-# jobs:
-#   code:
-#     runs-on: ubuntu-latest
-#     steps:
-#         name: checkout code
-#       - uses: actions/checkout@v4
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-#   build:
-#     needs: code
-#     runs-on: ubuntu-latest
-#     steps:
-#       - uses: actions/checkout@v4
-#       - name: Install backend dependencies
-#         run: cd url-shortener/backend && npm install
-#       - name: Build frontend
-#         run: cd url-shortener/frontend && npm install && npm run build
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./url-shortener/backend
+          push: true
+          tags: ${{ secrets.DOCKER_USER }}/url-shortener-backend:latest
 
-#   test:
-#     needs: build
-#     runs-on: ubuntu-latest
-#     steps:
-#       - uses: actions/checkout@v4
-#       - name: placeholder test step
-#         run: echo "No automated test yet - build passing confirms syntax is valid"
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./url-shortener/frontend
+          push: true
+          tags: ${{ secrets.DOCKER_USER }}/url-shortener-frontend:latest
 
-#   deploy:
-#     needs: test
-#     runs-on: ubuntu-latest
-#     steps:
-#       - name: Decode SSH key
-#         run: echo "${{ secrets.EC2_SSH_KEY_B64 }}" | base64 -d > private_key.pem
-#       - name: Verify key format (safe, no key content shown)
-#         run: |
-#           wc -l private_key.pem
-#           head -1 private_key.pem
-#           tail -1 private_key.pem
-#           chmod 600 private_key.pem
-#       - name: Deploy to EC2 via SSH
-#         uses: appleboy/ssh-action@v1.0.0
-#         with:
-#           host: ${{ secrets.EC2_HOST }}
-#           username: ${{ secrets.EC2_USERNAME }}
-#           key_path: private_key.pem
-#           script: |
-#             cd ~/docker-projects/Docker-project/url-shortener
-#             git pull origin main
-#             docker compose up --build -d
-
-  
+  deploy-ec2:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    steps:
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          script: |
+            cd ~/docker-projects/Docker-project/url-shortener
+            docker compose pull backend frontend
+            docker compose up -d
