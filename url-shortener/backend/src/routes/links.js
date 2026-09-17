@@ -42,7 +42,7 @@ router.post('/shorten', async (req, res) => {
     }
 
     const result = await pool.query(
-      'INSERT INTO links (short_code, original_url, user_id, expires_at) VALUES ($1, $2, $3, $4,) RETURNING id, short_code, original_url, user_id, created_at, expires_at',
+      'INSERT INTO links (short_code, original_url, user_id, expires_at) VALUES ($1, $2, $3, $4) RETURNING id, short_code, original_url, user_id, created_at, expires_at',
       [shortCode, originalUrl, req.userId, expiresAt]
     );
 
