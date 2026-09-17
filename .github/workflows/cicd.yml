@@ -1,0 +1,61 @@
+name: URL Shortener CI/CD
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Docker login
+        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ vars.DOCKERHUB_USERNAME }}" --password-stdin
+
+      - name: Build & push backend image
+        run: |
+          docker build -t ${{ vars.DOCKERHUB_USERNAME }}/url-shortener-backend:latest ./backend
+          docker push ${{ vars.DOCKERHUB_USERNAME }}/url-shortener-backend:latest
+
+  build-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Docker login
+        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ vars.DOCKERHUB_USERNAME }}" --password-stdin
+
+      - name: Build & push frontend image
+        run: |
+          docker build -t ${{ vars.DOCKERHUB_USERNAME }}/url-shortener-frontend:latest ./frontend
+          docker push ${{ vars.DOCKERHUB_USERNAME }}/url-shortener-frontend:latest
+
+  deploy:
+    needs: [build-backend, build-frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Copy production compose file to server
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.EC2_SSH_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: docker-compose.prod.yml
+          target: ~/url-shortener/
+
+      - name: SSH deploy
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_SSH_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            export DOCKERHUB_USERNAME=${{ vars.DOCKERHUB_USERNAME }}
+            echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u ${{ vars.DOCKERHUB_USERNAME }} --password-stdin
+            docker pull ${{ vars.DOCKERHUB_USERNAME }}/url-shortener-backend:latest
+            docker pull ${{ vars.DOCKERHUB_USERNAME }}/url-shortener-frontend:latest
+            cd ~/url-shortener
+            docker compose -f docker-compose.prod.yml down
+            docker compose -f docker-compose.prod.yml up -d
