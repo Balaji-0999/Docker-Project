@@ -1,49 +1,126 @@
-name: Docker Build & Push
+name: URL Shortener DevSecOps CI/CD
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'url-shortener/**'
   workflow_dispatch:
 
 jobs:
-  build-and-push:
+  # ---------- CI: Security & Quality Scans ----------
+  secrets-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Gitleaks secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  dependency-scan-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: npm audit (backend)
+        working-directory: url-shortener/backend
+        run: npm audit --audit-level=high
+
+  dependency-scan-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: npm audit (frontend)
+        working-directory: url-shortener/frontend
+        run: npm audit --audit-level=high
+
+  docker-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint backend Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: url-shortener/backend/Dockerfile
+      - name: Lint frontend Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: url-shortener/frontend/Dockerfile
+
+  # ---------- Build & Push ----------
+  build-backend:
+    needs: [secrets-scan, dependency-scan-backend, docker-lint]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Docker login
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build & push backend image
+        run: |
+          docker build -t ${{ vars.DOCKERHUB_USERNAME }}/url-shortener-backend:latest ./url-shortener/backend
+          docker push ${{ vars.DOCKERHUB_USERNAME }}/url-shortener-backend:latest
+
+  build-frontend:
+    needs: [secrets-scan, dependency-scan-frontend, docker-lint]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Docker login
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build & push frontend image
+        run: |
+          docker build -t ${{ vars.DOCKERHUB_USERNAME }}/url-shortener-frontend:latest ./url-shortener/frontend
+          docker push ${{ vars.DOCKERHUB_USERNAME }}/url-shortener-frontend:latest
+
+  # ---------- Image Vulnerability Scan ----------
+  trivy-scan:
+    needs: [build-backend, build-frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trivy scan backend image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ vars.DOCKERHUB_USERNAME }}/url-shortener-backend:latest
+          severity: HIGH,CRITICAL
+          exit-code: '0'
+      - name: Trivy scan frontend image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ vars.DOCKERHUB_USERNAME }}/url-shortener-frontend:latest
+          severity: HIGH,CRITICAL
+          exit-code: '0'
+
+  # ---------- Deploy ----------
+  deploy:
+    needs: [trivy-scan]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
+      - name: Copy production compose file to server
+        uses: appleboy/scp-action@v1
         with:
-          username: ${{ secrets.DOCKER_USER }}
-          password: ${{ secrets.DOCKER_HUB_TOKEN }}
-
-      - name: Build and push backend image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./url-shortener/backend
-          push: true
-          tags: ${{ secrets.DOCKER_USER }}/url-shortener-backend:latest
-
-      - name: Build and push frontend image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./url-shortener/frontend
-          push: true
-          tags: ${{ secrets.DOCKER_USER }}/url-shortener-frontend:latest
-
-  deploy-ec2:
-    runs-on: ubuntu-latest
-    needs: build-and-push
-    steps:
-      - name: Deploy to EC2
-        uses: appleboy/ssh-action@v1.2.2
-        with:
-          host: ${{ secrets.EC2_HOST }}
+          host: ${{ secrets.EC2_SSH_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: url-shortener/docker-compose.prod.yml
+          target: url-shortener/
+
+      - name: SSH deploy
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_SSH_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd ~/docker-projects/Docker-project/url-shortener
-            docker compose pull backend frontend
-            docker compose up -d
+            export DOCKERHUB_USERNAME=${{ vars.DOCKERHUB_USERNAME }}
+            echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u ${{ vars.DOCKERHUB_USERNAME }} --password-stdin
+            docker pull ${{ vars.DOCKERHUB_USERNAME }}/url-shortener-backend:latest
+            docker pull ${{ vars.DOCKERHUB_USERNAME }}/url-shortener-frontend:latest
+            cd ~/url-shortener
+            docker compose -f docker-compose.prod.yml down
+            docker compose -f docker-compose.prod.yml up -d
