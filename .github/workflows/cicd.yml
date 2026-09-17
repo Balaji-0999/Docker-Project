@@ -43,7 +43,7 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source:  url-shortener/docker-compose.prod.yml
-          target: ~/
+          target: target: url-shortener/
 
       - name: SSH deploy
         uses: appleboy/ssh-action@v1
