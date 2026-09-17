@@ -12,7 +12,8 @@ CREATE TABLE links (
     short_code VARCHAR(20) UNIQUE NOT NULL,
     original_url TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT NOW(),
-    expires_at TIMESTAMP DEFAULT NULL
+    expires_at TIMESTAMP DEFAULT NULL,
+     password_hash VARCHAR(255) DEFAULT NULL
 );
 
 CREATE TABLE clicks (
