@@ -1,11 +1,11 @@
 import axios from 'axios';
 
-const API_BASE = 'http://54.90.214.41:5000/api';
+const API_BASE = 'http://54.243.18.239:5000/api';
 
 export const REDIRECT_BASE = API_BASE.replace('/api', '');
 
 const api = axios.create({
-  baseURL: API_BASE,
+  baseURL: API_BASE,z
 });
 
 // Har request ke saath token automatically bhej do (agar login hai)
