@@ -14,7 +14,7 @@ jobs:
 
       - name: Build & push backend image
         run: |
-          docker build -t ${{ vars.DOCKERHUB_USERNAME }}/url-shortener-backend:latest ./backend
+          docker build -t ${{ vars.DOCKERHUB_USERNAME }}/url-shortener-backend:latest ./url-shortener/backend
           docker push ${{ vars.DOCKERHUB_USERNAME }}/url-shortener-backend:latest
 
   build-frontend:
@@ -27,7 +27,7 @@ jobs:
 
       - name: Build & push frontend image
         run: |
-          docker build -t ${{ vars.DOCKERHUB_USERNAME }}/url-shortener-frontend:latest ./frontend
+          docker build -t ${{ vars.DOCKERHUB_USERNAME }}/url-shortener-frontend:latest ./url-shortener/frontend
           docker push ${{ vars.DOCKERHUB_USERNAME }}/url-shortener-frontend:latest
 
   deploy:
